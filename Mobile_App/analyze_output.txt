@@ -1,0 +1,92 @@
+﻿Analyzing diabetes_project...                                   
+
+   info - The file name 'LoginScreen.dart' isn't a lower_case_with_underscores identifier - lib\Authentication\LoginScreen.dart:1:1 - file_names
+   info - Parameter 'key' could be a super parameter - lib\Authentication\LoginScreen.dart:10:9 - use_super_parameters
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\LoginScreen.dart:40:30 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Authentication\LoginScreen.dart:187:56 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Authentication\forgot_password_screen.dart:7:9 - use_super_parameters
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\forgot_password_screen.dart:41:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\forgot_password_screen.dart:55:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\forgot_password_screen.dart:63:28 - use_build_context_synchronously
+   info - Parameter 'key' could be a super parameter - lib\Authentication\register_screen.dart:8:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Authentication\register_screen.dart:191:56 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Authentication\reset_password_screen.dart:8:9 - use_super_parameters
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\reset_password_screen.dart:46:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\reset_password_screen.dart:57:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\reset_password_screen.dart:65:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\Authentication\reset_password_screen.dart:75:28 - use_build_context_synchronously
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\add_edit_doctor_screen.dart:7:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\chatbot.dart:14:9 - use_super_parameters
+warning - The value of the field '_teal' isn't used - lib\MainScreens\chatbot.dart:43:22 - unused_field
+warning - The value of the field '_dark' isn't used - lib\MainScreens\chatbot.dart:44:22 - unused_field
+warning - The value of the field '_surface' isn't used - lib\MainScreens\chatbot.dart:45:22 - unused_field
+warning - The value of the field '_card' isn't used - lib\MainScreens\chatbot.dart:46:22 - unused_field
+   info - Don't invoke 'print' in production code - lib\MainScreens\chatbot.dart:253:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:318:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:442:24 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:445:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:514:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:552:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:582:26 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:587:28 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:654:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:685:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:700:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\chatbot.dart:760:38 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\daily_monitoring_screen.dart:13:9 - use_super_parameters
+   info - Don't use 'BuildContext's across async gaps - lib\MainScreens\daily_monitoring_screen.dart:103:36 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\MainScreens\daily_monitoring_screen.dart:194:7 - avoid_print
+   info - 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre - lib\MainScreens\daily_monitoring_screen.dart:205:42 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\MainScreens\daily_monitoring_screen.dart:317:22 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\MainScreens\daily_monitoring_screen.dart:318:27 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\MainScreens\daily_monitoring_screen.dart:319:12 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\MainScreens\daily_monitoring_screen.dart:321:20 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\MainScreens\daily_monitoring_screen.dart:322:25 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\MainScreens\daily_monitoring_screen.dart:323:12 - curly_braces_in_flow_control_structures
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\doctor_communication_screen.dart:8:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\health_education_screen.dart:7:9 - use_super_parameters
+   info - Unnecessary use of 'toList' in a spread - lib\MainScreens\health_education_screen.dart:147:14 - unnecessary_to_list_in_spreads
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\historical_data_screen.dart:22:9 - use_super_parameters
+   info - Don't invoke 'print' in production code - lib\MainScreens\historical_data_screen.dart:91:7 - avoid_print
+   info - Statements in an if should be enclosed in a block - lib\MainScreens\historical_data_screen.dart:406:7 - curly_braces_in_flow_control_structures
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\home_screen.dart:11:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\onboarding_screen.dart:6:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\MainScreens\splash_screen.dart:8:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreens\splash_screen.dart:88:43 - deprecated_member_use
+   info - The file name 'Stroke_screen.dart' isn't a lower_case_with_underscores identifier - lib\Sub-Screens\Stroke_screen.dart:1:1 - file_names
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\Sub-Screens\Stroke_screen.dart:402:17 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\Sub-Screens\Stroke_screen.dart:460:17 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\Sub-Screens\Stroke_screen.dart:482:17 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Sub-Screens\article_view_screen.dart:10:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Sub-Screens\article_view_screen.dart:62:33 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Sub-Screens\check_body_result_screen.dart.dart:12:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Sub-Screens\check_body_result_screen.dart.dart:157:32 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\Sub-Screens\check_body_screen.dart:316:15 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\Sub-Screens\check_body_screen.dart:334:15 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Sub-Screens\choice_screen.dart:14:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Sub-Screens\choice_screen.dart:75:63 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Sub-Screens\choice_screen.dart:232:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Sub-Screens\choice_screen.dart:255:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Sub-Screens\choice_screen.dart:266:30 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Sub-Screens\imageanalysis_screen.dart:13:9 - use_super_parameters
+   info - Don't invoke 'print' in production code - lib\Sub-Screens\imageanalysis_screen.dart:174:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\Sub-Screens\imageanalysis_screen.dart:183:9 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\Sub-Screens\imageanalysis_screen.dart:341:39 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\Sub-Screens\profile_screen.dart:6:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\Sub-Screens\settings_screen.dart:10:9 - use_super_parameters
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\Sub-Screens\settings_screen.dart:151:19 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\Sub-Screens\settings_screen.dart:152:19 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\Sub-Screens\settings_screen.dart:160:19 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\Sub-Screens\settings_screen.dart:161:19 - deprecated_member_use
+   info - Parameter 'key' could be a super parameter - lib\core\widgets\chatbot_fab.dart:5:9 - use_super_parameters
+   info - Parameter 'key' could be a super parameter - lib\features\emergency\emergency_screen.dart:8:9 - use_super_parameters
+warning - The declaration '_showProfileSheet' isn't referenced - lib\features\nutrition\nutrition_screen.dart:1385:8 - unused_element
+   info - Parameter 'key' could be a super parameter - lib\features\profile\profile_screen.dart:9:9 - use_super_parameters
+
+flutter : 82 issues found. (ran in 6.1s)
+At line:1 char:47
++ ... :\vs flutter projects\diabetes_project"; flutter analyze 2>&1 | Out-F ...
++                                              ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (82 issues found. (ran in 6.1s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
