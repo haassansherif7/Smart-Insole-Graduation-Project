@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:diabetes_project/core/database/health_event.dart';
 import 'package:diabetes_project/core/providers/health_history_provider.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,9 @@ class _DailyMonitoringScreenState
 
   int? lastReadingId;
   int? _lastNotifiedReadingId;
+
+  String _mlRiskLevel = '';
+  int _mlPrediction = -1;
 
   double parseValue(dynamic v, double fallback) {
     if (v == null) return fallback;
@@ -114,6 +118,72 @@ class _DailyMonitoringScreenState
     super.dispose();
   }
 
+  void _parseMLResult(Map<String, dynamic> row) {
+    try {
+      final aiResultRaw = row['ai_result'];
+      if (aiResultRaw == null) return;
+
+      Map<String, dynamic> aiResult;
+      if (aiResultRaw is String) {
+        aiResult = jsonDecode(aiResultRaw) as Map<String, dynamic>;
+      } else {
+        aiResult = aiResultRaw as Map<String, dynamic>;
+      }
+
+      // ai_result has nested 'prediction' object
+      final prediction = aiResult['prediction'];
+      Map<String, dynamic> predMap;
+      if (prediction is Map<String, dynamic>) {
+        predMap = prediction;
+      } else {
+        predMap = aiResult;
+      }
+
+      setState(() {
+        _mlPrediction = predMap['prediction'] as int? ?? -1;
+        _mlRiskLevel = predMap['risk_level'] as String? ?? '';
+      });
+
+      debugPrint('=== ML from Supabase: prediction=$_mlPrediction, level=$_mlRiskLevel ===');
+    } catch (e) {
+      debugPrint('=== ML Parse Error: $e ===');
+    }
+  }
+
+  bool _fallbackDialogShown = false;
+
+  void _showFallbackAlert(bool isArabic) {
+    if (_fallbackDialogShown) return;
+    _fallbackDialogShown = true;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text(isArabic ? 'تنبيه' : 'Warning'),
+          ],
+        ),
+        content: Text(
+          isArabic
+              ? 'القراءات عالية، راقب قدمك'
+              : 'Readings are high, monitor your foot',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _fallbackDialogShown = false;
+            },
+            child: Text(isArabic ? 'حسناً' : 'OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _fetchSensorData() async {
     if (_isFetchingData) return;
     _isFetchingData = true;
@@ -182,12 +252,32 @@ class _DailyMonitoringScreenState
         _aiResult = message;
       });
 
+      _parseMLResult(row);
+
+      // Fallback: لو الموديل قال No Risk بس في قراءات عالية
+      final rawPres1 = parseValue(row['Pres1'], 0);
+      final rawPres2 = parseValue(row['Pres2'], 0);
+      final rawBigFP = parseValue(row['BigF_P'], 0);
+      final rawSideP = parseValue(row['Side_P'], 0);
+      final rawCenterP = parseValue(row['Center_P'], 0);
+      final hasHighRawPressure = [rawPres1, rawPres2, rawBigFP, rawSideP, rawCenterP]
+          .any((p) => p > 3500);
+      final hasHighRawTemp = _temperatureReadings.any((t) => t > 37);
+
+      if (_mlPrediction == 0 &&
+          (hasHighRawPressure || hasHighRawTemp) &&
+          mounted) {
+        _showFallbackAlert(isArabic);
+      } else {
+        _fallbackDialogShown = false;
+      }
+
       widget.onSensorUpdate?.call(
         _overallFootTemp.toStringAsFixed(1),
         _hasHighPressure ? 'high' : 'normal',
       );
 
-      final bool isDangerInApp = _hasHighTemp || _hasHighPressure;
+      final bool isDangerInApp = _hasHighTemp || _hasHighPressure || _mlPrediction == 1;
 
       if (isDangerInApp && _lastNotifiedReadingId != currentId) {
         _lastNotifiedReadingId = currentId;
@@ -202,7 +292,21 @@ class _DailyMonitoringScreenState
           String title;
           String body;
 
-          if (_hasHighTemp && _hasHighPressure) {
+          if (_mlPrediction == 1) {
+            switch (_mlRiskLevel) {
+              case 'Critical':
+                title = isArabic ? '🚨 خطر حرج' : '🚨 Critical Risk';
+                body = isArabic ? 'خطر حرج - اطلب مساعدة طبية فوراً' : 'Critical - seek immediate help';
+                break;
+              case 'High':
+                title = isArabic ? '🚨 خطر مرتفع' : '🚨 High Risk';
+                body = isArabic ? 'خطر مرتفع - راجع طبيبك' : 'High risk - see your doctor';
+                break;
+              default:
+                title = isArabic ? '⚠️ تحذير' : '⚠️ Warning';
+                body = isArabic ? 'راقب حالة قدمك' : 'Monitor your foot condition';
+            }
+          } else if (_hasHighTemp && _hasHighPressure) {
             title = isArabic ? '🚨 خطر عالي' : '🚨 High Risk';
             body = isArabic
                 ? 'ارتفاع في الحرارة والضغط - راجع طبيبك'
@@ -239,7 +343,7 @@ class _DailyMonitoringScreenState
       }
 
       bool isNewReading = lastReadingId != currentId;
-      bool isDanger = _hasHighTemp || _hasHighPressure;
+      bool isDanger = _hasHighTemp || _hasHighPressure || _mlPrediction == 1;
 
       if (isDanger && !AlertNotifier.appInForeground && _lastNotifiedReadingId != currentId) {
         debugPrint('=== DANGER NOTIF: Sending background notification ===');
@@ -269,12 +373,14 @@ class _DailyMonitoringScreenState
       }
 
       if (isNewReading && mounted) {
-        final score = _sensorRiskScore();
-        final level = score >= 0.8
+        final score = _mlPrediction == 1
+            ? (_mlRiskLevel == 'Critical' ? 0.9 : _mlRiskLevel == 'High' ? 0.75 : 0.55)
+            : _sensorRiskScore();
+        final level = _mlRiskLevel == 'Critical'
             ? RiskLevel.critical
-            : score >= 0.55
+            : _mlRiskLevel == 'High'
                 ? RiskLevel.warning
-                : score >= 0.25
+                : (_hasHighTemp || _hasHighPressure)
                     ? RiskLevel.info
                     : RiskLevel.none;
         // ignore: use_build_context_synchronously
@@ -357,7 +463,29 @@ class _DailyMonitoringScreenState
     Color color;
     IconData icon;
 
-    if (_hasHighTemp && _hasHighPressure) {
+    if (_mlPrediction == 1) {
+      switch (_mlRiskLevel) {
+        case 'Critical':
+          text = isArabic ? 'خطر حرج' : 'Critical Risk';
+          color = Colors.red.shade900;
+          icon = Icons.emergency;
+          break;
+        case 'High':
+          text = isArabic ? 'خطر مرتفع' : 'High Risk';
+          color = Colors.red;
+          icon = Icons.warning;
+          break;
+        case 'Moderate':
+          text = isArabic ? 'خطر متوسط' : 'Moderate Risk';
+          color = Colors.orange;
+          icon = Icons.warning_amber;
+          break;
+        default:
+          text = isArabic ? 'خطر منخفض' : 'Low Risk';
+          color = Colors.yellow.shade700;
+          icon = Icons.info;
+      }
+    } else if (_hasHighTemp && _hasHighPressure) {
       text = isArabic ? 'خطر عالي' : 'High Risk';
       color = Colors.red;
       icon = Icons.warning;
@@ -499,8 +627,8 @@ class _DailyMonitoringScreenState
     Color c;
 
     if (isTemp) {
-      if (v >= 37.5) { c = Colors.red; }
-      else if (v >= 36.5) { c = Colors.orange; }
+      if (v >= 38.0) { c = Colors.red; }
+      else if (v >= 37.0) { c = Colors.orange; }
       else { c = Colors.blue; }
     } else {
       if (v >= 70) { c = Colors.redAccent; }
@@ -508,15 +636,24 @@ class _DailyMonitoringScreenState
       else { c = Colors.blueAccent; }
     }
 
+    final size = isTemp ? 20.0 : 28.0;
+
     return Align(
       alignment: a,
       child: Container(
-        width: isTemp ? 26 : 18,
-        height: isTemp ? 26 : 18,
+        width: size,
+        height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: c,
           shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: c.withValues(alpha: 0.4),
+              blurRadius: 4,
+              spreadRadius: 1,
+            ),
+          ],
         ),
         child: Text(
           isTemp
@@ -602,22 +739,24 @@ class _DailyMonitoringScreenState
   Widget _buildLegend(bool isArabic) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              isArabic ? 'دليل الألوان' : 'Color Legend',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 16,
-              runSpacing: 10,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _legendItem(Colors.red, isArabic ? 'خطر' : 'High Risk'),
-                _legendItem(Colors.orange, isArabic ? 'متوسط' : 'Medium'),
-                _legendItem(Colors.blue, isArabic ? 'طبيعي' : 'Normal'),
+                _legendItem(Colors.red, isArabic ? '🌡 خطر' : '🌡 Danger', large: false),
+                _legendItem(Colors.orange, isArabic ? '🌡 مرتفع' : '🌡 High', large: false),
+                _legendItem(Colors.blue, isArabic ? '🌡 طبيعي' : '🌡 Normal', large: false),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _legendItem(Colors.redAccent, isArabic ? '⚡ خطر' : '⚡ Danger', large: true),
+                _legendItem(Colors.orangeAccent, isArabic ? '⚡ مرتفع' : '⚡ High', large: true),
+                _legendItem(Colors.blueAccent, isArabic ? '⚡ طبيعي' : '⚡ Normal', large: true),
               ],
             ),
           ],
@@ -626,17 +765,20 @@ class _DailyMonitoringScreenState
     );
   }
 
-  Widget _legendItem(Color color, String text) {
+  Widget _legendItem(Color color, String text, {bool large = true}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          width: large ? 14 : 10,
+          height: large ? 14 : 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
         ),
-        const SizedBox(width: 6),
-        Text(text),
+        const SizedBox(width: 4),
+        Text(text, style: const TextStyle(fontSize: 11)),
       ],
     );
   }

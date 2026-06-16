@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:diabetes_project/core/config/app_config.dart';
 
 class ScenarioDetails {
   final String week;
@@ -80,40 +81,45 @@ Reply in JSON only with no extra text:
     Map<String, dynamic> patientData, {
     bool isArabic = true,
   }) async {
-    for (int attempt = 1; attempt <= 2; attempt++) {
-      try {
-        debugPrint('=== SCENARIO: Attempt $attempt ===');
+    final body = jsonEncode({
+      'foot_risk': patientData['footRisk'] ?? 0.0,
+      'grade': patientData['grade'] ?? '',
+      'last_scan': patientData['lastScan'] ?? '',
+      'language': isArabic ? 'ar' : 'en',
+    });
 
-        final res = await http.post(
-          Uri.parse('http://10.0.2.2:8000/scenario'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'foot_risk': patientData['footRisk'] ?? 0.0,
-            'grade': patientData['grade'] ?? '',
-            'last_scan': patientData['lastScan'] ?? '',
-            'language': isArabic ? 'ar' : 'en',
-          }),
-        ).timeout(const Duration(seconds: 60));
-
-        debugPrint('=== SCENARIO: Status = ${res.statusCode} ===');
-
-        if (res.statusCode != 200) continue;
-
-        final body = utf8.decode(res.bodyBytes);
-        final data = jsonDecode(body) as Map<String, dynamic>;
-
-        if (data.containsKey('error')) {
-          debugPrint('=== SCENARIO: Server error = ${data['error']} ===');
-          continue;
-        }
-
-        return ScenarioResult.fromJson(data);
-      } catch (e) {
-        debugPrint('=== SCENARIO ERROR attempt $attempt: $e ===');
-        if (attempt == 2) return null;
-        await Future.delayed(const Duration(seconds: 2));
+    // Try Railway first
+    try {
+      debugPrint('=== SCENARIO: Trying Railway ===');
+      final res = await http.post(
+        Uri.parse('${AppConfig.railwayUrl}/scenario'),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      ).timeout(const Duration(seconds: 60));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        if (!data.containsKey('error')) return ScenarioResult.fromJson(data);
       }
+    } catch (e) {
+      debugPrint('=== SCENARIO: Railway failed: $e ===');
     }
+
+    // Fallback to local
+    try {
+      debugPrint('=== SCENARIO: Trying Local ===');
+      final res = await http.post(
+        Uri.parse('${AppConfig.localUrl}/scenario'),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      ).timeout(const Duration(seconds: 60));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        if (!data.containsKey('error')) return ScenarioResult.fromJson(data);
+      }
+    } catch (e) {
+      debugPrint('=== SCENARIO: Local failed: $e ===');
+    }
+
     return null;
   }
 

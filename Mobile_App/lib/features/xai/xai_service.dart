@@ -1,11 +1,9 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:diabetes_project/core/config/app_config.dart';
 
 class XaiService {
-  static const _baseUrl = 'http://10.0.2.2:8000';
-
   Future<Map<String, dynamic>?> explain({
     required String eventType,
     required double riskScore,
@@ -13,42 +11,46 @@ class XaiService {
     String? notes,
     bool isArabic = true,
   }) async {
+    final body = jsonEncode({
+      'event_type': eventType,
+      'risk_score': riskScore,
+      'risk_level': riskLevel,
+      'notes': notes ?? '',
+      'language': isArabic ? 'ar' : 'en',
+    });
+
+    // Try Railway first
     try {
-      debugPrint('=== XAI: Calling $_baseUrl/xai ===');
-      debugPrint('=== XAI: isArabic=$isArabic, type=$eventType, score=$riskScore ===');
-
+      debugPrint('=== XAI: Trying Railway ===');
       final res = await http.post(
-        Uri.parse('$_baseUrl/xai'),
+        Uri.parse('${AppConfig.railwayUrl}/xai'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'event_type': eventType,
-          'risk_score': riskScore,
-          'risk_level': riskLevel,
-          'notes': notes ?? '',
-          'language': isArabic ? 'ar' : 'en',
-        }),
+        body: body,
       ).timeout(const Duration(seconds: 60));
-
-      debugPrint('=== XAI: Status = ${res.statusCode} ===');
-      debugPrint('=== XAI: Body = ${res.body} ===');
-
-      if (res.statusCode != 200) return null;
-
-      final decoded = utf8.decode(res.bodyBytes);
-      final data = jsonDecode(decoded) as Map<String, dynamic>;
-
-      if (data.containsKey('error')) {
-        debugPrint('=== XAI: Server error = ${data['error']} ===');
-        return null;
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        if (!data.containsKey('error')) return data;
       }
-      return data;
-    } on TimeoutException {
-      debugPrint('=== XAI: TIMEOUT after 60s ===');
-      return null;
-    } catch (e, stack) {
-      debugPrint('=== XAI ERROR: $e ===');
-      debugPrint('=== XAI STACK: $stack ===');
-      return null;
+    } catch (e) {
+      debugPrint('=== XAI: Railway failed: $e ===');
     }
+
+    // Fallback to local
+    try {
+      debugPrint('=== XAI: Trying Local ===');
+      final res = await http.post(
+        Uri.parse('${AppConfig.localUrl}/xai'),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      ).timeout(const Duration(seconds: 60));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+        if (!data.containsKey('error')) return data;
+      }
+    } catch (e) {
+      debugPrint('=== XAI: Local failed: $e ===');
+    }
+
+    return null;
   }
 }

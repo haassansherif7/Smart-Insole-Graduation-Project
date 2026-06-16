@@ -224,7 +224,7 @@ class _ImageAnalysisScreenState extends State<ImageAnalysisScreen>
     try {
       var request = http.MultipartRequest(
         "POST",
-        Uri.parse("https://web-production-7e9fe.up.railway.app/predict"),
+        Uri.parse("https://web-production-1f84a.up.railway.app/predict"),
       );
 
       request.files.add(

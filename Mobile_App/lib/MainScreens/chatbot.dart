@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:diabetes_project/core/config/app_config.dart';
 
 class ChatbotScreen extends StatefulWidget {
   final String? imageResult;
@@ -26,8 +28,6 @@ class ChatbotScreen extends StatefulWidget {
 class _ChatbotScreenState extends State<ChatbotScreen>
     with TickerProviderStateMixin {
 
-  static const String _baseUrl = 'http://10.0.2.2:8000';
-
   final List<_Message> _messages = [];
 
   final TextEditingController _input =
@@ -46,6 +46,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   late String _userId;
 
+  Timer? _keepAliveTimer;
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +60,18 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         'guest_${DateTime.now().millisecondsSinceEpoch}';
 
     _sendInitialData();
+
+    _keepAliveTimer = Timer.periodic(
+      const Duration(minutes: 2),
+      (_) async {
+        try {
+          await http.get(
+            Uri.parse('${AppConfig.railwayUrl}/'),
+          ).timeout(const Duration(seconds: 5));
+          debugPrint('=== CHAT: Keep-alive ping sent ===');
+        } catch (_) {}
+      },
+    );
 
     WidgetsBinding.instance
         .addPostFrameCallback((_) {
@@ -79,6 +93,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   @override
   void dispose() {
+    _keepAliveTimer?.cancel();
     _input.dispose();
     _scroll.dispose();
     _player.dispose();
@@ -87,43 +102,85 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   Future<void> _sendInitialData() async {
-    final body = <String, dynamic>{
-      'user_id': _userId,
-    };
-
-    if (widget.imageResult != null) {
-      body['image_result'] = widget.imageResult;
-    }
-
-    if (widget.strokeResult != null) {
-      body['stroke_result'] = widget.strokeResult;
-    }
-
-    if (widget.temperature != null) {
-      body['temperature'] = widget.temperature;
-    }
-
-    if (widget.pressure != null) {
-      body['pressure'] = widget.pressure;
-    }
-
-    if (widget.generalHealth != null) {
-      body['general_health'] = widget.generalHealth;
-    }
-
+    final body = <String, dynamic>{'user_id': _userId};
+    if (widget.imageResult != null) body['image_result'] = widget.imageResult;
+    if (widget.strokeResult != null) body['stroke_result'] = widget.strokeResult;
+    if (widget.temperature != null) body['temperature'] = widget.temperature;
+    if (widget.pressure != null) body['pressure'] = widget.pressure;
+    if (widget.generalHealth != null) body['general_health'] = widget.generalHealth;
     if (body.length == 1) return;
+
+    final encoded = jsonEncode(body);
 
     try {
       await http.post(
-        Uri.parse('$_baseUrl/update_data'),
-
-        headers: {
-          'Content-Type': 'application/json',
-        },
-
-        body: jsonEncode(body),
-      );
+        Uri.parse('${AppConfig.railwayUrl}/update_data'),
+        headers: {'Content-Type': 'application/json'},
+        body: encoded,
+      ).timeout(const Duration(seconds: 10));
+      return;
     } catch (_) {}
+
+    try {
+      await http.post(
+        Uri.parse('${AppConfig.localUrl}/update_data'),
+        headers: {'Content-Type': 'application/json'},
+        body: encoded,
+      ).timeout(const Duration(seconds: 5));
+    } catch (_) {}
+  }
+
+  Future<String?> _callServer(String text) async {
+    final body = jsonEncode({
+      'user_id': _userId,
+      'user_input': text,
+      'image_result': widget.imageResult ?? '',
+      'stroke_result': widget.strokeResult ?? '',
+      'temperature': widget.temperature ?? '',
+      'pressure': widget.pressure ?? '',
+      'general_health': widget.generalHealth ?? '',
+    });
+
+    // Try Railway first
+    debugPrint('=== CHAT: Trying Railway... ===');
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConfig.railwayUrl}/chat'),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      ).timeout(const Duration(seconds: 60));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data['reply'] != null) {
+          debugPrint('=== CHAT: Using Railway ===');
+          return data['reply'] as String;
+        }
+      }
+    } catch (e) {
+      debugPrint('=== CHAT: Railway failed: $e ===');
+    }
+
+    // Fallback to local
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConfig.localUrl}/chat'),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      ).timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data['reply'] != null) {
+          debugPrint('=== CHAT: Using Local ===');
+          return data['reply'] as String;
+        }
+      }
+    } catch (e) {
+      debugPrint('=== CHAT: Local failed: $e ===');
+    }
+
+    return null;
   }
 
   Future<void> _send() async {
@@ -146,63 +203,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     _scrollDown();
 
-    try {
-      final res = await http.post(
-        Uri.parse('$_baseUrl/chat'),
+    final reply = await _callServer(text);
 
-        headers: {
-          'Content-Type': 'application/json',
-        },
-
-        body: jsonEncode({
-          'user_id': _userId,
-          'user_input': text,
-          'image_result':
-              widget.imageResult ?? '',
-          'stroke_result':
-              widget.strokeResult ?? '',
-          'temperature':
-              widget.temperature ?? '',
-          'pressure':
-              widget.pressure ?? '',
-          'general_health':
-              widget.generalHealth ?? '',
-        }),
-      );
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(
-          utf8.decode(res.bodyBytes),
-        );
-
-        final reply =
-            data['reply'] as String? ?? '...';
-
-        final audioUrl =
-            data['audio'] as String?;
-
-        _addBotMessage(reply, audioUrl);
-      } else {
-
-        final isArabic =
-            Localizations.localeOf(context)
-                    .languageCode ==
-                "ar";
-
-        _addBotMessage(
-          isArabic
-              ? 'حدث خطأ في الاتصال بالسيرفر.'
-              : 'Server connection error.',
-          null,
-        );
-      }
-    } catch (_) {
-
+    if (reply != null) {
+      _addBotMessage(reply, null);
+    } else {
       final isArabic =
-          Localizations.localeOf(context)
-                  .languageCode ==
-              "ar";
-
+          Localizations.localeOf(context).languageCode == 'ar';
       _addBotMessage(
         isArabic
             ? 'تعذر الاتصال بالسيرفر.'
@@ -644,6 +651,12 @@ Container(
         isArabic
             ? "كيف أقلل الخطورة؟"
             : "How to reduce risk?",
+      ),
+
+      _suggestionChip(
+        isArabic
+            ? "توقع مستقبلي"
+            : "Future prediction",
       ),
     ],
   ),

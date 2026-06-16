@@ -1,4 +1,7 @@
 class AppConfig {
-  // Replace with your actual Gemini API key
-  static const String geminiApiKey = 'AIzaSyCeK7EOfU5MZwQO404tgiacoyMQYD3jj08';
+static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
+  static const String railwayUrl =
+      'https://chatboot-production-0ece.up.railway.app';
+  static const String localUrl =
+      'http://10.0.2.2:8000';
 }

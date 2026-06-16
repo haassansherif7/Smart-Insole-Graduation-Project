@@ -3,9 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:diabetes_project/core/database/health_event.dart';
 import 'package:diabetes_project/core/providers/health_history_provider.dart';
 import 'package:diabetes_project/main.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EmergencyScreen extends StatelessWidget {
   const EmergencyScreen({super.key});
+
+  Future<void> _launch(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,9 +114,7 @@ class EmergencyScreen extends StatelessWidget {
                   isArabic ? '📞 اتصل بالإسعاف' : '📞 Call Emergency',
                   style: const TextStyle(color: Colors.white, fontSize: 18),
                 ),
-                onPressed: () {
-                  // launch phone dialer
-                },
+                onPressed: () => _launch('tel:123'),
               ),
             ),
           ],

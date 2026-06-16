@@ -1,33 +1,43 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import google.generativeai as genai
-from gtts import gTTS
-import uuid
+import os
 import json
-from fastapi.staticfiles import StaticFiles
+import threading
+import time
+import requests
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from google import genai
 
 app = FastAPI()
 
-# 🔊 serve audio
-app.mount("/audio", StaticFiles(directory="."), name="audio")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# 🔑 API KEY
-genai.configure(api_key="AQ.Ab8RN6L8-sjfJhOJb4jsa7QgcXztxJBMNeDA8dq16-uE-ZSM6Q")
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
-# 🤖 model
-model = genai.GenerativeModel("models/gemini-flash-latest")
-
-# 🧠 Memory (per user)
 user_memory = {}
-
-# 💬 Chat history (per user)
 chat_history = {}
 
-# 📂 load FAQ JSON
 with open("chatbot_data.json", "r", encoding="utf-8") as f:
     faq_data = json.load(f)
 
-# 📦 request model
+# Keep-alive
+def keep_alive():
+    time.sleep(60)
+    while True:
+        try:
+            requests.get("https://chatboot-production-0ece.up.railway.app/")
+            print("Keep-alive ping sent")
+        except:
+            pass
+        time.sleep(300)
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
 class ChatRequest(BaseModel):
     user_id: str
     user_input: str
@@ -37,117 +47,89 @@ class ChatRequest(BaseModel):
     pressure: str = ""
     general_health: str = ""
 
-# 🔍 FAQ search
 def search_faq(user_input):
     user_input = user_input.lower()
-
     for item in faq_data:
         if item["question_ar"] in user_input or item["question_en"].lower() in user_input:
             return item
     return None
 
-# 🚨 alerts
 def check_alerts(memory):
     alerts = []
-
     try:
         if "temperature" in memory and float(memory["temperature"]) > 38:
             alerts.append("⚠️ ارتفاع في درجة الحرارة")
-
         if memory.get("pressure") == "high":
             alerts.append("⚠️ ضغط القدم عالي")
-
         if memory.get("stroke_result") == "high risk":
             alerts.append("🚨 خطر جلطة مرتفع")
-
         if memory.get("image_result") and "stage 2" in memory["image_result"]:
             alerts.append("⚠️ قرحة متقدمة")
-
     except:
         pass
-
     return alerts
 
-# 🧠 prompt
 PROMPT = """
 You are an intelligent medical assistant inside a smart healthcare system.
-
 You have access to:
 - Foot ulcer classification
 - Stroke risk prediction
 - Foot temperature & pressure
 - General health prediction
-
 Your job:
 - Explain condition simply
 - Give helpful advice
 - Ask ONE follow-up question
 - Act like a real doctor
-
 Rules:
 - Keep response SHORT (2-4 lines)
 - Use patient data if available
 - If data shows risk → warn clearly
 - Do NOT give final diagnosis
-
 Language:
 - Reply in same language as user
 """
 
-# 🔥 موديلات تبعت الداتا هنا
+@app.get("/")
+def root():
+    return {"message": "🚀 Chatbot API Running"}
+
 @app.post("/update_data")
 def update_data(data: dict):
     user_id = data.get("user_id")
-
     if not user_id:
         return {"error": "user_id is required"}
-
     if user_id not in user_memory:
         user_memory[user_id] = {}
-
     for key, value in data.items():
         if key != "user_id" and value:
             user_memory[user_id][key] = value
-
     return {
         "message": "Data stored",
         "memory": user_memory[user_id]
     }
 
-# 💬 chatbot
 @app.post("/chat")
 def chat(req: ChatRequest):
     try:
-        # 🧠 init
         if req.user_id not in user_memory:
             user_memory[req.user_id] = {}
-
         if req.user_id not in chat_history:
             chat_history[req.user_id] = []
-
-        # 🧠 optional update from request
         if req.image_result:
             user_memory[req.user_id]["image_result"] = req.image_result
-
         if req.stroke_result:
             user_memory[req.user_id]["stroke_result"] = req.stroke_result
-
         if req.temperature:
             user_memory[req.user_id]["temperature"] = req.temperature
-
         if req.pressure:
             user_memory[req.user_id]["pressure"] = req.pressure
-
         if req.general_health:
             user_memory[req.user_id]["general_health"] = req.general_health
 
         memory = user_memory.get(req.user_id, {})
         history = chat_history.get(req.user_id, [])
-
-        # 🚨 alerts
         alerts = check_alerts(memory)
-
-        # 🔍 FAQ
         faq = search_faq(req.user_input)
 
         if faq:
@@ -155,63 +137,41 @@ def chat(req: ChatRequest):
                 text_reply = faq["answer_ar"]
             else:
                 text_reply = faq["answer_en"]
-
         else:
-            # 🧠 patient data
             patient_data = ""
             for key, value in memory.items():
                 patient_data += f"{key}: {value}\n"
-
-            # 💬 history
             history_text = ""
             for h in history[-6:]:
                 history_text += f"{h}\n"
-
-            # 🤖 AI
             full_prompt = f"""
             {PROMPT}
-
             Patient Data:
             {patient_data if patient_data else "No data"}
-
             Alerts:
             {alerts if alerts else "No alerts"}
-
             Conversation History:
             {history_text if history_text else "No previous conversation"}
-
             Patient: {req.user_input}
             Assistant:
             """
-
-            response = model.generate_content(full_prompt)
+            response = client.models.generate_content(
+                model="models/gemini-flash-latest",
+                contents=full_prompt
+            )
             text_reply = response.text
 
-        # 🧠 save history
         chat_history[req.user_id].append(f"User: {req.user_input}")
         chat_history[req.user_id].append(f"Assistant: {text_reply}")
 
-        # 🔊 detect language
-        lang = "ar"
-        if not any("\u0600" <= c <= "\u06FF" for c in req.user_input):
-            lang = "en"
-
-        # 🔊 TTS
-        filename = f"audio_{uuid.uuid4().hex}.mp3"
-        tts = gTTS(text=text_reply, lang=lang)
-        tts.save(filename)
-
         return {
             "reply": text_reply,
-            "audio": f"http://127.0.0.1:8000/audio/{filename}",
+            "audio": None,
             "alerts": alerts
         }
-
     except Exception as e:
         return {"error": str(e)}
 
-
-# 🔮 Scenario Simulation
 class ScenarioRequest(BaseModel):
     foot_risk: float = 0.0
     grade: str = ""
@@ -225,7 +185,6 @@ def scenario(req: ScenarioRequest):
             prompt = f"""
 You are a medical simulation system for a diabetic patient.
 Patient data: foot risk {req.foot_risk}%, ulcer grade: {req.grade}, last scan: {req.last_scan}
-
 Simulate 3 future scenarios. Reply in JSON only with no extra text:
 {{
   "worst": {{"week": "...", "month": "...", "tips": ["...", "...", "..."]}},
@@ -237,7 +196,6 @@ Simulate 3 future scenarios. Reply in JSON only with no extra text:
             prompt = f"""
 أنت نظام محاكاة طبية لمريض سكري.
 بيانات المريض: خطر القدم {req.foot_risk}%، درجة القرحة: {req.grade}، آخر فحص: {req.last_scan}
-
 أجب بـ JSON فقط بدون أي نص إضافي:
 {{
   "worst": {{"week": "...", "month": "...", "tips": ["...", "...", "..."]}},
@@ -245,7 +203,10 @@ Simulate 3 future scenarios. Reply in JSON only with no extra text:
   "best": {{"week": "...", "month": "...", "tips": ["...", "...", "..."]}}
 }}
 """
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="models/gemini-flash-latest",
+            contents=prompt
+        )
         text = response.text.replace("```json", "").replace("```", "").strip()
         start = text.find("{")
         end = text.rfind("}") + 1
@@ -255,7 +216,6 @@ Simulate 3 future scenarios. Reply in JSON only with no extra text:
         return result
     except Exception as e:
         return {"error": str(e)}
-
 
 class XAIRequest(BaseModel):
     event_type: str = ""
@@ -278,7 +238,10 @@ Reply in English with JSON only:
 أجب بالعربية بـ JSON فقط:
 {{"factors": ["عامل 1", "عامل 2", "عامل 3"], "meaning": "شرح بسيط", "calculation": "كيف حسب", "confidence": "مستوى الثقة"}}"""
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="models/gemini-flash-latest",
+            contents=prompt
+        )
         text = response.text.replace("```json", "").replace("```", "").strip()
         start = text.find("{")
         end = text.rfind("}") + 1
